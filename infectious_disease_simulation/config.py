@@ -1,10 +1,11 @@
-# infectious_disease_simulation/config.py
+"""Validated, immutable simulation parameters."""
 from dataclasses import dataclass
 from typing import Any
 from .errors import ConfigError
 
 @dataclass(frozen=True)
 class Config:
+    """All parameters that define a single simulation run. Build via `Config.from_dict`."""
     simulation_name: str
     simulation_speed: float
     display_size: int
@@ -21,7 +22,7 @@ class Config:
 
     @staticmethod
     def from_dict(params: dict[str, Any]) -> "Config":
-        # validate types, bounds; raise ConfigError on invalid input
+        """Validate a raw param dict and build a Config. Raises ConfigError on any invalid value."""
         try:
             name = str(params["simulation_name"])
             speed = float(params["simulation_speed"])
@@ -39,25 +40,33 @@ class Config:
         except Exception as e:
             raise ConfigError(f"Invalid configuration: {e}")
 
-        # Validation checks
+        if not name:
+            raise ConfigError("simulation_name must not be empty.")
+        if len(name) > 50:
+            raise ConfigError("simulation_name is too long (max 50 characters).")
+        if speed <= 0:
+            raise ConfigError(f"'{speed}'. simulation_speed must be positive.")
+        if ds <= 0:
+            raise ConfigError(f"'{ds}'. display_size must be a positive integer.")
+        if ds > 2160:  # 4K display height — beyond this, windows don't fit on common monitors
+            raise ConfigError(f"'{ds}'. display_size too large (max 2160).")
         if not (0 <= ir <= 1):
-            raise ConfigError(f"'{ir}', infection_rate must be between 0 and 1")
+            raise ConfigError(f"'{ir}', infection_rate must be between 0 and 1.")
         if inc < 0:
-            raise ConfigError(f"'{inc}'. incubation_time must be a positive integer")
+            raise ConfigError(f"'{inc}'. incubation_time must be non-negative.")
         if not (0 <= rec <= 1):
-            raise ConfigError(f"'{rec}'. recovery_rate must be between 0 and 1")
+            raise ConfigError(f"'{rec}'. recovery_rate must be between 0 and 1.")
         if not (0 <= mort <= 1):
-            raise ConfigError(f"'{mort}'. mortality_rate must be between 0 and 1")
+            raise ConfigError(f"'{mort}'. mortality_rate must be between 0 and 1.")
         if bs <= 0:
-            raise ConfigError(f"'{bs}'. Building size must be a positive integer.")
+            raise ConfigError(f"'{bs}'. building_size must be a positive integer.")
         if nh <= 0 or no <= 0:
-            raise ConfigError("There must be at least one house and office.")
+            raise ConfigError("There must be at least one house and one office.")
         if nh + no > (ds // bs) ** 2:
-            raise ConfigError("Number of buildings greater than the number of possible locations.")
+            raise ConfigError("Number of buildings exceeds the number of possible locations.")
         if ppl <= 0:
-            raise ConfigError(f"'{ppl}'. Number of people per house must be a positive integer.")
+            raise ConfigError(f"'{ppl}'. num_people_in_house must be a positive integer.")
 
-        # additional checks - you can reuse current GUI validations or call them here
         return Config(simulation_name=name,
                       simulation_speed=speed,
                       display_size=ds,

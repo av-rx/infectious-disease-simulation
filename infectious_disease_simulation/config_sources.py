@@ -16,7 +16,7 @@ class ConfigSource(ABC):
 
 
 class GuiConfigSource(ConfigSource):
-    """Wraps the Tkinter Interface to collect parameters interactively."""
+    """Wraps the Tkinter Interface and bridges it to DB persistence + Config validation."""
 
     def __init__(self, db_path: str) -> None:
         self.__db_path = db_path
@@ -24,7 +24,24 @@ class GuiConfigSource(ConfigSource):
     def get_config(self) -> Config | None:
         # Imported lazily so headless runs don't pay the tkinter import cost
         from .ui.interface import Interface
-        return Interface(self.__db_path).get_config()
+        from .storage.db_handler import DBHandler
+
+        # Each callback opens its own short-lived DB connection so the UI doesn't have to
+        # juggle one — Tkinter's mainloop and a long-lived sqlite cursor don't mix nicely
+        # when modal dialogs come and go.
+        def fetch_runs_summary() -> list[dict]:
+            with DBHandler(self.__db_path) as db:
+                return db.fetch_runs_summary()
+
+        def fetch_run(run_id: int) -> dict | None:
+            with DBHandler(self.__db_path) as db:
+                return db.fetch_run(run_id)
+
+        params = Interface(fetch_runs_summary, fetch_run, Config.from_dict).get_params()
+        if params is None:
+            return None
+        # Already validated inside Interface; this call just rebuilds the typed Config
+        return Config.from_dict(params)
 
 
 class FileConfigSource(ConfigSource):
