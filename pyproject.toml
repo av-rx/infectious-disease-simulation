@@ -20,3 +20,9 @@ build-backend = "poetry.core.masonry.api"
 
 [project.scripts]
 infectious_disease_simulation = 'infectious_disease_simulation.main:Main'
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
