@@ -38,14 +38,17 @@ class CreateGraph:
         columns: int = len(self.__map[0])
         graph: dict[tuple[int, int], list[tuple[int, int]]] = {}
         points: list[tuple[int, int]] = []
-        k: int = max(3, int(len(points) ** 0.5)) # Heuristic for number of neighbours
-        k = min(k, 6) # Limit k to max 6
 
-        # Collect building tiles
+        # Collect building tiles first - we need len(points) to size k correctly
         for i in range(rows):
             for j in range(columns):
                 if self.__map[i][j] != 0:
                     points.append((i, j))
+
+        # k-nearest-neighbour fan-out. With too small a k the resulting MST can be
+        # disconnected (see issue: Dijkstra returning inf for cross-component routes),
+        # so scale with sqrt(n) and floor at a value that's enough for typical configs.
+        k: int = max(6, int(len(points) ** 0.5))
 
         # For each building, find its nearest neighbours
         for px, py in points:
