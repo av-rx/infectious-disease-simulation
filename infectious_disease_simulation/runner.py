@@ -6,6 +6,7 @@ import pygame
 
 from .config import Config
 from .display.base_display import BaseDisplay
+from .paths import asset_path
 from .simulation import clock, disease, population
 from .simulation.pacer import Pacer, RealTimePacer, TickPacer
 from .world import create_map
@@ -73,7 +74,7 @@ class SimulationRunner:
         """Set caption, clear to white, set window icon."""
         self.__display.set_caption()
         self.__display.fill((255, 255, 255))
-        self.__display.set_display_icon("images\\virus_icon.png")
+        self.__display.set_display_icon(str(asset_path("virus_icon.png")))
 
     def run(self) -> None:
         """Main loop: advance time, move people, render. Exits on window close (or end of sim in headless)."""

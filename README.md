@@ -35,11 +35,19 @@ This README details (in part) the key components of the program and how they wor
     poetry install
     ```
 
-5. Run the program:
+5. Run the program (GUI):
 
     ```bash
     poetry run python -m infectious_disease_simulation.main
     ```
+
+   Or run headless using a JSON config (no GUI, no real-time pacing):
+
+    ```bash
+    poetry run python -m infectious_disease_simulation.main --headless assets/configs/default_config.json
+    ```
+
+   Add `--seed N` for a deterministic, reproducible run.
 
 6. Set parameters in the `Simulation Parameters` window, or load a previous simulation's parameters by clicking `Load Previous Run`
 
