@@ -1,15 +1,5 @@
 """
-Defines Tilemap class which creates a random tilemap with buildings.
-
-Imports:
-    random
-    numpy
-    pygame
-    buildings: Types of buildings and their properties.
-    display: Holds display properties, pygame modules, to manage display window.
-
-Classes:
-    Tilemap
+Tilemap: random placement of houses and offices onto a grid of tile cells.
 """
 import random
 import numpy as np
@@ -18,46 +8,28 @@ from .buildings import Building, House, Office
 from ..display import Display
 
 class Tilemap:
-    """
-    A class to create a tilemap on which different types of buildings can be placed and displayed.
-
-    Attributes:
-        __display (display.Display): Display surface on which the tilemap will be rendered.
-        __building_width (int): The width of the building to be displayed in the tilemap.
-        __building_height (int): The height of the building to be displayed in the tilemap.
-        __size (tuple[int, int]): Number of tiles, depending on display size and building size.
-        __map (np.ndarray): A 2D array representing the tilemap grid, initialised with 0s.
-        __houses_list (list[House]): List of House objects in the tilemap.
-        __offices_list (list[Office]): List of Office objects in the tilemap
-        __houses_dict (dict[tuple[int, int], House]): Dictionary mapping locations to House objects in the tilemap.
-        __offices_dict (dict[tuple[int, int], Office]): Dictionary mapping locations to Office objects in the tilemap.
-        __buildings (list[Building]): List of the buildings in the tilemap.
-        __num_houses (int): The number of houses to be placed on the tilemap.
-        __num_offices (int): The number of offices to be placed on the tilemap.
-        __current_houses (int): Current number of houses placed on the tilemap, initialised to 0.
-        __current_offices (int): Current number of offices placed on the tilemap, initialised to 0.
-    """
+    """Random building placement on a grid sized by display_size / building_size."""
     def __init__(self, display_obj: Display,
                  num_houses: int, num_offices: int,
-                 building_width: int, building_height: int) -> None:
+                 building_width: int, building_height: int,
+                 rng: random.Random | None = None) -> None:
         """
-        Initialises the tilemap with the given parameters.
-
         Args:
-            display_obj (display.Display): Display surface on which the tilemap will be rendered.
-            num_houses (int): The maximum number of houses that can be placed on the tilemap.
-            num_offices (int): The maximum number of offices that can be placed on the tilemap.
-            building_width (int): The width of each building in the tilemap.
-            building_height (int): The height of each building in the tilemap.
+            display_obj: Display surface (real or headless).
+            num_houses: Number of House tiles to place.
+            num_offices: Number of Office tiles to place.
+            building_width: Width of each building tile in pixels.
+            building_height: Height of each building tile in pixels.
+            rng: Optional injected RNG for deterministic placement.
         """
         self.__display: Display = display_obj
         self.__building_width: int = building_width
         self.__building_height: int = building_height
         self.__size: tuple[int, int] = (int(self.__display.get_width() / building_width),
                                         int(self.__display.get_height() / building_height))
-        self.__map: np.ndarray = np.zeros(self.__size, dtype=int) # Array of 0s of size self.__size
-        self.__houses_list: list[House] = [] # More efficient downstream for insertion-ordered index access
-        self.__offices_list: list[Office] = [] # More efficient downstream for insertion-ordered index access
+        self.__map: np.ndarray = np.zeros(self.__size, dtype=int)
+        self.__houses_list: list[House] = []
+        self.__offices_list: list[Office] = []
         self.__houses_dict: dict[tuple[int, int], House] = {}
         self.__offices_dict: dict[tuple[int, int], Office] = {}
         self.__buildings: list[Building] = []
@@ -65,6 +37,7 @@ class Tilemap:
         self.__num_offices: int = num_offices
         self.__current_houses: int = 0
         self.__current_offices: int = 0
+        self.__rng: random.Random = rng or random.Random()
 
     def get_num_houses(self) -> int:
         """
@@ -184,7 +157,7 @@ class Tilemap:
         if not empty_locations:
             return
         
-        x, y = random.choice(empty_locations) # random empty location
+        x, y = self.__rng.choice(empty_locations)
         building = building_cls((x, y))
 
         # NOTE

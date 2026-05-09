@@ -15,7 +15,8 @@ class InitialisePeople:
     """One-shot population builder. Call `.get_people()` once after construction."""
     def __init__(self, num_in_house: int,
                  display_obj: Display, map_obj: create_map.CreateMap, disease_obj: disease.Disease,
-                 seconds_per_hour: float, fps: int) -> None:
+                 seconds_per_hour: float, fps: int,
+                 rng: random.Random | None = None) -> None:
         self.__display: Display = display_obj
         self.__map: create_map.CreateMap = map_obj
         self.__tilemap: tilemap.Tilemap = self.__map.get_tilemap()
@@ -28,6 +29,7 @@ class InitialisePeople:
         self.__building_width: int = self.__tilemap.get_building_width()
         self.__building_height: int = self.__tilemap.get_building_height()
         self.__dijkstra: dijkstra.Dijkstra = dijkstra.Dijkstra(self.__roads)
+        self.__rng: random.Random = rng or random.Random()
         self.__people: list[person.Person] = self.__initialise_people()
 
     def get_people(self) -> list[person.Person]:
@@ -39,9 +41,9 @@ class InitialisePeople:
 
         # Get required values
         num_people: int = self.__tilemap.get_num_houses() * self.__num_in_house
-        infected_person_id: int = random.randint(0, num_people - 1)
+        infected_person_id: int = self.__rng.randint(0, num_people - 1)
         office_location_dist: list[tuple[int, int]] = self.__calculate_office_location_dist(num_people)
-        random.shuffle(office_location_dist)
+        self.__rng.shuffle(office_location_dist)
         office_location_dist_dict: dict[tuple[int, int], int] = self.__convert_list_to_dict(office_location_dist)
 
         # Calculate and set values for each person's parameters

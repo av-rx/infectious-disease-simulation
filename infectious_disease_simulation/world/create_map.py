@@ -1,51 +1,35 @@
 """
-Defines CreateMap class, responsible for creating and drawing the map with buildings and roads.
-
-Imports:
-    pygame
-    display: Holds display properties, pygame modules, to manage display window.
-    tilemap: Create tilemap with different types of buildings.
-    roads: Handles the drawing of roads using a MST.
-
-Classes:
-    CreateMap
+CreateMap: combines a Tilemap (buildings) with a Roads layer (MST + optional extras).
 """
+import random
 from .tilemap import Tilemap
 from .roads import Roads
 from ..display import Display
 
 class CreateMap:
-    """
-    A class to create and draw a map with buildings and roads.
-
-    Attributes:
-        __building_width (int): The building width
-        __building_height (int): The building height
-        __display (display.Display): The Display object where the map will be rendered.
-        __tilemap (tilemap.Tilemap): The Tilemap object that manages placing and drawing the buildings on the map.
-        __roads (roads.Roads): The Roads object that manages and draws roads on the map.
-    """
+    """Owns the tilemap and the road network, renders both onto the display."""
     def __init__(self, display_obj: Display,
                  num_houses: int, num_offices: int,
-                 building_width: int, building_height: int) -> None:
+                 building_width: int, building_height: int,
+                 rng: random.Random | None = None) -> None:
         """
-        initialises the map with the given parameters and sets up the display and tilemap.
-
         Args:
-            display_obj (display.Display): The display surface.
-            num_houses (int): The number of houses to be placed.
-            num_offices (int): The number of offices to be placed.
-            building_width (int): The width of each building in the tilemap.
-            building_height (int): The height of each building in the tilemap.
+            display_obj: Display surface (real or headless).
+            num_houses: Number of houses to place.
+            num_offices: Number of offices to place.
+            building_width: Building tile width in pixels.
+            building_height: Building tile height in pixels.
+            rng: Optional injected RNG for deterministic building placement.
         """
         self.__building_width: int = building_width
         self.__building_height: int = building_height
         self.__display: Display = display_obj
         print("Generating Tilemap...")
         self.__tilemap: Tilemap = Tilemap(self.__display,
-                                                          num_houses, num_offices,
-                                                          building_width, building_height)
-        self.__roads: Roads = None # Roads initialised to None (set later)
+                                          num_houses, num_offices,
+                                          building_width, building_height,
+                                          rng=rng)
+        self.__roads: Roads | None = None  # Built lazily in draw() once we know placement
 
     def draw(self, pause: bool, additional_roads: bool) -> None:
         """

@@ -2,6 +2,7 @@
 Population: collective state and per-tick update for every Person in the simulation.
 """
 import math
+import random
 from .initialise_people import InitialisePeople
 from ..display import Display # For typing
 from ..world import create_map # For typing
@@ -15,7 +16,8 @@ class Population:
                  display_obj: Display,
                  map_obj: create_map.CreateMap,
                  disease_obj: disease.Disease,
-                 seconds_per_hour: float, fps: int) -> None:
+                 seconds_per_hour: float, fps: int,
+                 rng: random.Random | None = None) -> None:
         """
         Args:
             num_in_house: Number of people per house.
@@ -24,6 +26,7 @@ class Population:
             disease_obj: Shared Disease instance for transmission rolls.
             seconds_per_hour: Real seconds per simulated hour.
             fps: Display frames per second.
+            rng: Optional injected RNG, threaded into population init.
         """
         self.__display: Display = display_obj
         self.__map: create_map.CreateMap = map_obj
@@ -38,7 +41,8 @@ class Population:
                                                               self.__map,
                                                               self.__disease,
                                                               self.__seconds_per_hour,
-                                                              self.__fps).get_people()
+                                                              self.__fps,
+                                                              rng=rng).get_people()
         self.__route_intersections: dict[int, list[person.Person]] = self.__find_route_intersections()
 
     def draw_people(self) -> None:
@@ -108,7 +112,10 @@ class Population:
                 for other in tile_buckets.get(tile, []):
                     if other is not individual:
                         others_set.add(other)
-            intersections[pid] = list(others_set)
+            # Sort by person_id so iteration order is deterministic across runs.
+            # (Default Person hash is id()-based, so list(set) order varies between processes
+            # and would desync any seeded run.)
+            intersections[pid] = sorted(others_set, key=lambda p: p.get_person_id())
 
         return intersections
 

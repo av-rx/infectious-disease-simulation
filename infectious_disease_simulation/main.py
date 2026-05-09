@@ -1,5 +1,6 @@
 """Entry point: parse args, source a Config, persist it, run the simulation."""
 
+import random
 import sys
 
 from .cli import parse_args
@@ -32,9 +33,13 @@ def main() -> None:
     except DBError as e:
         print(f"Error while saving parameters: {e}")
 
+    rng = random.Random(args.seed) if args.seed is not None else random.Random()
+    if args.seed is not None:
+        print(f"Using seed: {args.seed}")
+
     display = Display(config.display_size, config.display_size,
                       config.simulation_name, args.headless)
-    SimulationRunner(config, display).run()
+    SimulationRunner(config, display, rng=rng, seed=args.seed).run()
 
 
 # Backwards-compatible alias for the [project.scripts] entry point in pyproject.toml

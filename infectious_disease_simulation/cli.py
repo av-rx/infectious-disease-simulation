@@ -10,6 +10,7 @@ from .errors import UsageError
 class CliArgs:
     headless: bool
     config_path: str | None
+    seed: int | None
 
 
 def parse_args(argv: list[str]) -> CliArgs:
@@ -20,6 +21,9 @@ def parse_args(argv: list[str]) -> CliArgs:
     )
     parser.add_argument("--headless", action="store_true",
                         help="Run without a GUI. Requires a config file path.")
+    parser.add_argument("--seed", type=int, default=None,
+                        help="Optional integer seed for deterministic runs (building placement, "
+                             "office assignment, disease rolls).")
     parser.add_argument("config", nargs="?",
                         help="Path to a JSON config file (only used with --headless).")
 
@@ -30,4 +34,4 @@ def parse_args(argv: list[str]) -> CliArgs:
     if not ns.headless and ns.config is not None:
         raise UsageError("Positional config path is only valid with --headless.")
 
-    return CliArgs(headless=ns.headless, config_path=ns.config)
+    return CliArgs(headless=ns.headless, config_path=ns.config, seed=ns.seed)
