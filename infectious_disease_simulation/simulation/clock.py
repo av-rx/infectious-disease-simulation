@@ -1,15 +1,5 @@
 """
-Manages and displays time within the simulation and updates relevant parts of the simulation.
-
-Imports:
-    time
-    pygame
-    display: Manages display properties and pygame modules for handling the display.
-    population: Manages general methods relevant to the whole population. Also calls for people to be initialised.
-    plot_graph: Manages the display of simulation data in graph form.
-
-Classes:
-    Clock
+Simulation clock: paces the simulation, drives population/graph updates, draws the time HUD.
 """
 
 import time
@@ -18,32 +8,16 @@ from ..simulation import population # For typing
 from ..viz import plot_graph
 
 class Clock:
-    """
-    A class to manage and display time within a simulation.
-
-    Attributes:
-        __day (int): The current day of the simulation.
-        __hour (int): The current hour of the simulation.
-        __running (bool): The state of the simulation (running or not).
-        __seconds_per_hour (float): The number of real-world seconds per simulation hour.
-        __fps (int): The frames per second for the simulation display.
-        __font (pygame.font.Font): The font used to display time.
-        __display (display.Display): The display surface for the simulation.
-        __population (population.Population): The population being simulated.
-        __last_update (float): The last time the simulation was updated.
-        __graph (plot_graph.PlotGraph): The graph to display simulation data.
-    """
+    """Tracks simulated day/hour, drives infection updates, and triggers commute movement."""
     def __init__(self, display_obj: Display,
                  population_obj: population.Population,
                  seconds_per_hour: float, fps: int) -> None:
         """
-        Initialises the Clock class with the given parameters.
-
         Args:
-            display_obj (display.Display): The display surface for the simulation.
-            population_obj (population.Population): The population being simulated.
-            seconds_per_hour (int): The number of real-world seconds per simulation hour.
-            fps (int): The frames per second for the simulation display.
+            display_obj: Display surface (real or headless).
+            population_obj: The population to update each simulated hour.
+            seconds_per_hour: Real seconds per simulated hour.
+            fps: Display frames per second.
         """
         self.__day: int = 1
         self.__hour: int = 0
@@ -58,13 +32,12 @@ class Clock:
             self.__graph.update(self.__day, self.__hour, self.__population.get_status_counts())
 
     def update_time(self) -> None:
-        """
-        Updates the time within the simulation. Stops the simulation if there are no active infections.
-        """
-        if not self.__running: # Stop if not running
+        """Advance the simulation clock and update the population once per simulated hour."""
+        if not self.__running:
             return
 
-        if not self.__population.has_active_infections(): # If no infections, update graph and stop running
+        # No infections left - flush a final update and stop
+        if not self.__population.has_active_infections():
             self.__population.update_infection_status()
             counts = self.__population.get_status_counts()
             if not self.__display.is_headless():
@@ -73,48 +46,33 @@ class Clock:
             return
 
         current_time: float = time.time()
+        if current_time - self.__last_update < self.__seconds_per_hour:
+            return
 
-        # If a simulation hour has passed
-        if current_time - self.__last_update >= self.__seconds_per_hour:
-            self.__hour += 1 # Increment simulation hour
-            self.__population.update_infection_status() # Update infections
+        self.__hour += 1
+        self.__population.update_infection_status()
 
-            counts = self.__population.get_status_counts()
-            if not self.__display.is_headless():
-                self.__graph.update(self.__day, self.__hour, counts) # Update graph with current population status
+        counts = self.__population.get_status_counts()
+        if not self.__display.is_headless():
+            self.__graph.update(self.__day, self.__hour, counts)
 
-            if self.__hour > 24: # Change day
-                self.__hour = 1
-                self.__day += 1
+        if self.__hour > 24:
+            self.__hour = 1
+            self.__day += 1
 
-            # People to reach office by hour 9 and leave by hour 17
-            for individual in self.__population.get_people():
-                if self.__hour == individual.get_leave_home():
-                    individual.start_move_to_office()
-                elif self.__hour == 17:
-                    individual.start_move_to_home()
+        # People reach office by 9, leave at 17
+        for individual in self.__population.get_people():
+            if self.__hour == individual.get_leave_home():
+                individual.start_move_to_office()
+            elif self.__hour == 17:
+                individual.start_move_to_home()
 
-            self.__last_update = current_time
+        self.__last_update = current_time
 
     def display_time(self) -> None:
-        """
-        Displays the current time on the simulation display.
-        """
-        if self.__running:
-            time_text: str = f"Day: {self.__day}, Hour: {self.__hour}"
-        else:
-            time_text: str = "Simulation Ended"
-
-        try:
-            self.__display.draw_text(time_text, pos=(10, 10), colour=(0,0,0))
-        except AttributeError:
-            pass
+        """Draw the current simulated time on the display."""
+        time_text = f"Day: {self.__day}, Hour: {self.__hour}" if self.__running else "Simulation Ended"
+        self.__display.draw_text(time_text, pos=(10, 10), colour=(0, 0, 0))
 
     def get_running(self) -> bool:
-        """
-        Gets the running state of the simulation.
-
-        Returns:
-            bool: True if the simulation is running, False otherwise.
-        """
         return self.__running

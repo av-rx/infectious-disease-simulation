@@ -72,10 +72,3 @@ class CreateGraph:
             graph[(px, py)] = neighbours # Assign neighbour list to graph
 
         return graph
-
-"""        for point in points:
-            graph[point] = []
-            for other_point in points:
-                if point != other_point: # Avoid self loops
-                    graph[point].append(other_point) # Add points to graph"""
-

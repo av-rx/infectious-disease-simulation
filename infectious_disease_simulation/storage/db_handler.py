@@ -1,4 +1,4 @@
-# NEW FILE: infectious_disease_simulation/persistence/db.py
+"""SQLite handler for persisting and loading simulation run parameters."""
 
 import sqlite3
 from typing import Optional
@@ -8,7 +8,7 @@ from ..errors import DBError
 
 
 class DBHandler:
-    """Context manager for SQLite database handling simulation parameters."""
+    """Context manager wrapping a SQLite connection for the `simulations` table."""
 
     def __init__(self, path: str) -> None:
         self.path = path
@@ -20,7 +20,7 @@ class DBHandler:
             self._create_table()
             return self
         except sqlite3.Error as e:
-            raise DBError(f"Database connection error: {e}")  # NEW
+            raise DBError(f"Database connection error: {e}")
 
     def __exit__(self, exc_type, exc, tb) -> None:
         if self.conn:
@@ -28,7 +28,7 @@ class DBHandler:
             self.conn = None
 
     def _create_table(self) -> None:
-        """Create simulations table if it does not exist."""
+        """Create the `simulations` table if it doesn't already exist."""
         create_table_query = """
         CREATE TABLE IF NOT EXISTS simulations (
             run_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -54,10 +54,10 @@ class DBHandler:
             cur.execute(create_table_query)
             self.conn.commit()
         except sqlite3.Error as e:
-            raise DBError(f"Error creating table: {e}")  # NEW
+            raise DBError(f"Error creating table: {e}")
 
     def save_params(self, config: Config) -> int:
-        """Save a Config instance to the database and return the new run_id."""
+        """Persist a Config and return its new run_id."""
         insert = """
         INSERT INTO simulations (
             datetime, simulation_name, simulation_speed, display_size,
@@ -92,7 +92,7 @@ class DBHandler:
             self.conn.commit()
             return cur.lastrowid
         except sqlite3.Error as e:
-            raise DBError(f"Error saving parameters: {e}")  # NEW
+            raise DBError(f"Error saving parameters: {e}")
 
     def fetch_runs_summary(self) -> list[tuple]:
         """

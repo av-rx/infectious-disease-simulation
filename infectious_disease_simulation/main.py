@@ -1,18 +1,7 @@
 """
-Main module to initialise and run the simulation.
+Entry point: parse args, get a Config (GUI or headless file), wire up the simulation, run.
 
-Imports:
-    pygame
-    interface: Manages the simulation parameters interface.
-    sql_handler: Handles SQL database interactions.
-    display: Manages display settings and updates.
-    create_map: Creates and manages the simulation map.
-    disease: Simulates disease probabilities.
-    population: Manages the population within the simulation.
-    clock: Manages updating the simulation clock.
-
-Classes:
-    Main
+Note: this file will be split into cli/paths/config_sources/runner in stage 2 of the refactor.
 """
 
 import pygame
@@ -26,31 +15,12 @@ from .simulation import disease
 from .simulation import population
 from .simulation import clock
 from .config import Config
-from .errors import DBError, UsageError
+from .errors import ConfigError, DBError, UsageError
 from .storage.db_handler import DBHandler
 
 class Main:
-    """
-    Main class to initialise and run the simulation.
-
-    Attributes:
-        __interface (interface.Interface): Handles user interface of the program.
-        __params (dict[str, any]): The user-entered parameters for the program to use and run.
-        __sql_handler (sql_handler.SQLHandler): Handles connections, queries, and anything related to SQL.
-        __seconds_per_hour (float): The number of seconds per simulation hour.
-        __fps (int): The number of display updates per second.
-        __display (display.Display): The display object, containing properties and modules for managing the display.
-        __map_surface (pygame.Surface): A separate object for the map.
-        __map (create_map.CreateMap): Object which handles the map generation.
-        __disease (disease.Disease): Handles the disease properties and probability of person moving between states.
-        __population (population.Population): Handles the initialisation of the population.
-        __clock (clock.Clock): Manages the simulation clock which starts people movement, initialises the live graph.
-    """
+    """Bootstraps and runs a single simulation."""
     def __init__(self) -> None:
-        """
-        Initialises the Main class, sets up interface, parameters, display, map, disease, population, and clock.
-        Runs the simulation if parameters are valid.
-        """
         args = sys.argv[1:]
         self.__headless = "--headless" in args
         if self.__headless:
@@ -138,27 +108,31 @@ class Main:
         self.__run_simulation()
 
     def __load_config_file(self, path: str) -> Config:
+        """Load and validate a headless config from a JSON file."""
         try:
             with open(path) as f:
                 data = json.load(f)
-                print(data)
-            return Config(**data)
         except FileNotFoundError:
             print(f"Configuration file not found at: {path}")
-            sys.exit()
+            sys.exit(1)
+        except json.JSONDecodeError as e:
+            print(f"Configuration file is not valid JSON: {e}")
+            sys.exit(1)
+
+        try:
+            return Config.from_dict(data)
+        except ConfigError as e:
+            print(f"Invalid configuration: {e}")
+            sys.exit(1)
 
     def __initialise_display(self) -> None:
-        """
-        Initialises the display by setting the caption, filling the background, and setting the display icon.
-        """
+        """Set caption, clear to white, set window icon."""
         self.__display.set_caption()
         self.__display.fill((255, 255, 255))
         self.__display.set_display_icon("images\\virus_icon.png")
 
     def __run_simulation(self) -> None:
-        """
-        Runs the simulation by updating time, positions, and rendering the display in a loop until window is closed.
-        """
+        """Main loop: update time, move people, render. Exits on window close (or natural end in headless mode)."""
         running: bool = True # Flag for running
         pygame_clock: pygame.time.Clock = pygame.time.Clock()
 
@@ -184,31 +158,19 @@ class Main:
         pygame.quit()
 
     def __get_db_name(self, db_name: str = "simulation_params.db") -> str:
-        """
-        Checks where XDG_CONFIG_HOME is, taken from https://cgit.freedesktop.org/xdg/pyxdg/tree/xdg/BaseDirectory.py
-        
-        Args:
-            db_name (str): The name of the database file. Defaults to 'simulation_params.db'.
-
-        Returns:
-            str: The databases full path
-        """
-
+        """Resolve the database path under $XDG_DATA_HOME (or ~/.local/share), falling back to cwd on failure."""
+        # Logic adapted from pyxdg: https://cgit.freedesktop.org/xdg/pyxdg/tree/xdg/BaseDirectory.py
         _home = os.path.expanduser('~')
-        xdg_data_home = os.environ.get('XDG_DATA_HOME') or \
-            os.path.join(_home, '.local', 'share')
+        xdg_data_home = os.environ.get('XDG_DATA_HOME') or os.path.join(_home, '.local', 'share')
         dir_path = os.path.join(xdg_data_home, "infectious-disease-simulation")
 
         try:
-            os.makedirs(dir_path) # Only on first run
-        except FileExistsError:
-            pass # This just means the directory is already there which will happen for all subsequent runs
-        except Exception as err:
-            print(f"An error occurred: {err}") # Any other error we just put db in current dir
+            os.makedirs(dir_path, exist_ok=True)
+        except OSError as err:
+            print(f"Could not create data dir, using current directory: {err}")
             dir_path = os.path.curdir
 
-        new_path = os.path.join(dir_path, db_name)
-        return str(new_path)
+        return os.path.join(dir_path, db_name)
 
 # Run the main program
 if __name__ == "__main__":

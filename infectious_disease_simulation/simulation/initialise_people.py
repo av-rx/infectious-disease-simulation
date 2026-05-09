@@ -1,18 +1,5 @@
 """
-Initialises people and their properties within a simulation.
-
-Imports:
-    random
-    math
-    display: Manages display settings and updates.
-    tilemap: Creates the tilemap of buildings.
-    create_map: Creates and manages the simulation map.
-    disease: Simulates disease probabilities.
-    person: Manages and holds a simulated person's properties and person-specific methods.
-    dijkstra: Implements Dijkstra's algorithm for finding the shortest path.
-
-Classes:
-    InitialisePeople
+Builds the initial population: assigns homes, offices, routes, speeds, and one starting infection.
 """
 
 import random
@@ -25,37 +12,10 @@ from ..agents import person
 from ..agents import dijkstra
 
 class InitialisePeople:
-    """
-    A class to initialise people and their properties within a simulation.
-
-    Attributes:
-        __display (display.Display): The display surface.
-        __map (create_map.CreateMap): The map object managing roads.
-        __tilemap (tilemap.Tilemap): The tilemap object managing buildings on the map.
-        __disease (disease.Disease): The disease object for infection simulation.
-        __num_in_house (int): Number of people per house.
-        __seconds_per_hour (float): The number of seconds per simulation hour.
-        __fps (int): The frames per second for the simulation.
-        __roads (dict[tuple[int, int], list[tuple[tuple[int, int], int]]]): The dictionary of roads.
-        __building_width (int): The width of the buildings.
-        __building_height (int): The height of the buildings.
-        __dijkstra (dijkstra.Dijkstra): Dijkstra for pathfinding.
-        __people (list[person.Person]): The list of Person objects initialised.
-    """
+    """One-shot population builder. Call `.get_people()` once after construction."""
     def __init__(self, num_in_house: int,
                  display_obj: Display, map_obj: create_map.CreateMap, disease_obj: disease.Disease,
                  seconds_per_hour: float, fps: int) -> None:
-        """
-        Initialises the InitialisePeople class with the given parameters.
-
-        Args:
-            num_in_house (int): Number of people per house.
-            display_obj (display.Display): The display surface.
-            map_obj (create_map.CreateMap): The map object managing roads.
-            disease_obj (disease.Disease): The disease object for infection simulation.
-            seconds_per_hour (float): The number of seconds per simulation hour.
-            fps (int): The frames per second for the simulation.
-        """
         self.__display: Display = display_obj
         self.__map: create_map.CreateMap = map_obj
         self.__tilemap: tilemap.Tilemap = self.__map.get_tilemap()
@@ -71,21 +31,10 @@ class InitialisePeople:
         self.__people: list[person.Person] = self.__initialise_people()
 
     def get_people(self) -> list[person.Person]:
-        """
-        Gets the list of people.
-
-        Returns:
-            list[person.Person]: The list of person objects initialised.
-        """
         return self.__people
 
     def __initialise_people(self) -> list[person.Person]:
-        """
-        Initialises people in the houses on the tilemap.
-
-        Returns:
-            list[person.Person]: The list of person objects initialised.
-        """
+        """Build every Person, place them in homes/offices, and seed one initial infection."""
         people: list[person.Person] = [] # Initialise list
 
         # Get required values
@@ -127,224 +76,92 @@ class InitialisePeople:
         return people
 
     def __calculate_status(self, person_id: int, infected_person_id: int) -> str:
-        """
-        Calculates the initial status of a person.
-
-        Args:
-            person_id (int): The ID of the person.
-            infected_person_id (int): The ID of the initially infected person.
-
-        Returns:
-            str: 'I' if the person is infected, 'S' if susceptible.
-        """
-        if person_id == infected_person_id:
-            return 'I'
-        return 'S'
+        """'I' for the seed-infected person, 'S' for everyone else."""
+        return 'I' if person_id == infected_person_id else 'S'
 
     def __calculate_leave_home(self, time_to_travel: float) -> int:
-        """
-        Calculates the time to leave home for work so person reaches at 9am.
-
-        Args:
-            time_to_travel (float): The time it takes to travel to work.
-
-        Returns:
-            int: The hour to leave home.
-        """
-        leave_home: int = 9 - math.ceil(time_to_travel)# - 1
-        if leave_home < 1:
-            return 1
-        return leave_home
+        """Hour to leave home so the person arrives at the office by 9am (clamped to 1)."""
+        leave_home: int = 9 - math.ceil(time_to_travel)
+        return max(leave_home, 1)
 
     def __calculate_time_to_travel(self, route_weight: float, speed: float) -> float:
-        """
-        Calculates the time to travel a given route.
-
-        Args:
-            route_weight (float): The weight of the route.
-            speed (float): The speed of travel.
-
-        Returns:
-            float: The time to travel the route.
-        """
-        return math.ceil(((route_weight) / speed)) / self.__seconds_per_hour
+        """Travel time across a route, expressed in simulated hours."""
+        return math.ceil(route_weight / speed) / self.__seconds_per_hour
 
     def __calculate_speed(self) -> float:
-        """
-        Calculates the speed of travel.
-
-        Returns:
-            float: The speed of travel.
-        """
+        """Per-tick movement speed in pixels, scaled so traversal time is roughly display-independent."""
         return math.floor((self.__display.get_width() * (60 / self.__fps))
-                          /
-                          ((2 * self.__building_width) * self.__seconds_per_hour))
+                          / ((2 * self.__building_width) * self.__seconds_per_hour))
 
     def __scale_xy_list(self, xylist: list[tuple[int, int]]) -> list[tuple[int, int]]:
-        """
-        Scales a list of x, y coordinates to fit the display.
-
-        Args:
-            xylist (list[tuple[int, int]]): The list of x, y coordinates.
-
-        Returns:
-            list[tuple[int, int]]: The scaled list of x, y coordinates.
-        """
+        """Convert tile (x, y) coords to centred pixel coords on the display."""
         scaled_xy_list: list[tuple[int, int]] = []
-
-        # Scale so x, y tilemap locations are in the right place on the display
         for x, y in xylist:
             scaled_x: int = x * self.__building_width + self.__building_width // 2
             scaled_y: int = y * self.__building_height + self.__building_height // 2
             scaled_xy_list.append((scaled_x, scaled_y))
-
         return scaled_xy_list
 
     def __calculate_home_location(self, person_id: int, num_in_house: int) -> tuple[int, int]:
-        """
-        Calculates the home location for a person.
-
-        Args:
-            person_id (int): The ID of the person.
-            num_in_house (int): Number of people per house.
-
-        Returns:
-            tuple[int, int]: The home location.
-        """
-        # Home locations set by person_id
-        home_location: tuple[int, int] = self.__tilemap.get_houses()[person_id // num_in_house].get_location()
-        return home_location
+        # Person IDs are assigned to houses in blocks of `num_in_house`
+        return self.__tilemap.get_houses()[person_id // num_in_house].get_location()
 
     def __calculate_office_location(self, person_id: int,
                                     office_location_dist: list[tuple[int, int]]) -> tuple[int, int]:
-        """
-        Calculates the office location for a person.
-
-        Args:
-            person_id (int): The ID of the person.
-            office_location_dist (list[tuple[int, int]]): The list of office locations.
-
-        Returns:
-            tuple[int, int]: The office location.
-        """
-        office_location: tuple[int, int] = office_location_dist[person_id]
-        return office_location
+        return office_location_dist[person_id]
 
     def __calculate_home_position(self, person_id: int,
                                   num_in_house: int,
                                   home_location: tuple[int, int]) -> tuple[int, int]:
-        """
-        Calculates the home position for a person within their house.
-
-        Args:
-            person_id (int): The ID of the person.
-            num_in_house (int): Number of people per house.
-            home_location (tuple[int, int]): The location of the house.
-
-        Returns:
-            tuple[int, int]: The home position within the house.
-        """
+        """Pixel position of this person inside their house, chosen from a grid of slots."""
         positions: list[tuple[int, int]] = self.__calculate_positions(num_in_house, home_location)
-        home_position: tuple[int, int] = positions[person_id % num_in_house]
-        return home_position
+        return positions[person_id % num_in_house]
 
     def __calculate_office_position(self, person_id: int,
                                     office_location: tuple[int, int],
                                     office_location_dist_dict: dict[tuple[int, int], int]) -> tuple[int, int]:
-        """
-        Calculates the office position for a person within their office.
-
-        Args:
-            person_id (int): The ID of the person.
-            office_location (tuple[int, int]): The location of the office.
-            office_location_dist_dict (dict[tuple[int, int], int]): The dictionary of office locations and counts.
-
-        Returns:
-            tuple[int, int]: The office position within the office.
-        """
+        """Pixel position of this person inside their office, indexed by their slot among occupants."""
         num_in_office: int = office_location_dist_dict[office_location]
         positions: list[tuple[int, int]] = self.__calculate_positions(num_in_office, office_location)
         occupants: list[person.Person] = self.__tilemap.get_office_from_location(office_location).get_occupants()
-        occupant_index: int | None = None
 
-        # Get person's occupant_index in occupants of office so office position can be calculated
+        # Position is decided by order added to occupants list - keeps positions unique
         for index, individual in enumerate(occupants):
             if individual.get_person_id() == person_id:
-                occupant_index = index
-                break
+                return positions[index]
 
-        if occupant_index is None:
-            raise RuntimeError(f"Person ID {person_id} not found in occupants of office at location {office_location}")
-
-        # Place in position depending on occupant index in positions to ensure no same positions.
-        office_position: tuple[int, int] = positions[occupant_index]
-
-        return office_position
+        raise RuntimeError(f"Person ID {person_id} not found in occupants of office at location {office_location}")
 
     def __calculate_office_location_dist(self, num_people: int) -> list[tuple[int, int]]:
-        """
-        Calculates the distribution of office locations for people.
-
-        Args:
-            num_people (int): The number of people.
-
-        Returns:
-            list[tuple[int, int]]: The list of office locations for people.
-        """
+        """List of length `num_people` mapping each ID to an office location, evenly distributed."""
         office_location_dist: list[tuple[int, int]] = []
         num_offices: int = len(self.__tilemap.get_offices())
         people_dist_in_offices: list[int] = self.__calculate_people_dist_in_offices(num_people, num_offices)
 
-        # Iterate through to add the distribution of offices to list
         for index, num in enumerate(people_dist_in_offices):
             office_location: tuple[int, int] = self.__tilemap.get_offices()[index].get_location()
             for _ in range(num):
                 office_location_dist.append(office_location)
-
         return office_location_dist
 
     def __calculate_people_dist_in_offices(self, num_people: int, num_offices: int) -> list[int]:
-        """
-        Calculates the distribution of people across offices.
-
-        Args:
-            num_people (int): The number of people.
-            num_offices (int): The number of offices.
-
-        Returns:
-            list[int]: The list of people count per office.
-        """
-        base_allocation: int = num_people // num_offices # Num people per office if everyone could be evenly distributed
-        extra_people: int = num_people % num_offices # Remainder of people not considered in base_allocation
-
-        distribution: list[int] = [base_allocation] * num_offices # Distribution list with num_office elements of base_allocation
-
-        for i in range(extra_people): # Increments the first extra_people elements of distribution by 1 for even spread
+        """Spread people as evenly as possible across offices; the first `extra_people` get one more."""
+        base_allocation: int = num_people // num_offices
+        extra_people: int = num_people % num_offices
+        distribution: list[int] = [base_allocation] * num_offices
+        for i in range(extra_people):
             distribution[i] += 1
-
         return distribution
 
     def __calculate_positions(self, num_in_building: int, building_location: tuple[int, int]) -> list[tuple[int, int]]:
-        """
-        Calculates positions for people within a building.
-
-        Args:
-            num_in_building (int): The number of people in the building.
-            building_location (tuple[int, int]): The location of the building.
-
-        Returns:
-            list[tuple[int, int]]: The list of positions within the building.
-        """
-        # Divide building into divisions of squares depending on number of people in building
+        """Grid of slot positions inside a building so occupants don't overlap visually."""
+        # ceil(sqrt) gives the smallest square grid that fits num_in_building slots
         divisions: int = math.ceil(math.sqrt(num_in_building))
         x_location, y_location = building_location
 
-        # Calculate the offset for displaying people without overlaps
         x_offset: float = self.__building_width / (divisions + 1)
         y_offset: float = self.__building_height / (divisions + 1)
         positions: list[tuple[int, int]] = []
-
-        # Loop through possible offsets and add to list of positions
         for i in range(divisions):
             col: int = i + 1
             for j in range(divisions):
@@ -352,44 +169,18 @@ class InitialisePeople:
                 x: int = round((x_location * self.__building_width) + (x_offset * row))
                 y: int = round((y_location * self.__building_height) + (y_offset * col))
                 positions.append((x, y))
-
         return positions
 
     def __convert_list_to_dict(self, input_list: list[tuple[int, int]]) -> dict[tuple[int, int], int]:
-        """
-        Converts a list to a dictionary with counts of each item.
-
-        Args:
-            input_list (list[tuple[int, int]]): The input list.
-
-        Returns:
-            dict[tuple[int, int], int]: The dictionary with counts of each item.
-        """
+        """Count occurrences of each item in `input_list`."""
         dictionary: dict[tuple[int, int], int] = {}
-
         for key in input_list:
-            if key in dictionary:
-                dictionary[key] += 1
-            else:
-                dictionary[key] = 1
-
+            dictionary[key] = dictionary.get(key, 0) + 1
         return dictionary
 
     def __calculate_radius(self, num_in_building: int) -> int:
-        """
-        Calculates the radius for people within a building so they can be displayed easily.
-
-        Args:
-            num_in_building (int): The number of people in the building.
-
-        Returns:
-            int: The radius.
-        """
+        """Drawing radius that fits `num_in_building` people into a single building tile without overlap."""
         default_radius: int = min(self.__building_width, self.__building_height) // 10
-        # Determine layour divisions (grid) and derive radius so items fit
         divisions: int = math.ceil(math.sqrt(num_in_building))
-        # Radius so everyone's radii fit exactly into building
         even_radius: int = min(self.__building_width, self.__building_height) // (2 * (divisions + 1))
-
-        radius: int = min(default_radius, even_radius) # Smallest of the two
-        return radius
+        return min(default_radius, even_radius)
