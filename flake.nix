@@ -22,10 +22,10 @@
             pygame
             setuptools
           ];
-          
-          postInstall = ''
-            cp -r ./infectious_disease_simulation/images $out/bin/
-          '';
+
+          # Note: the window icon at assets/virus_icon.png is loaded via a path relative
+          # to the package source; in a nix-built install it won't resolve, but
+          # set_display_icon silently degrades and the simulation runs fine without it.
 
           meta = {
             description = "A program to visualise simulations of an infectious disease spreading through a procedurally generated basic town.";

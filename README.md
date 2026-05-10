@@ -41,19 +41,29 @@ This README details (in part) the key components of the program and how they wor
     poetry run python -m infectious_disease_simulation.main
     ```
 
-   Or run headless using a JSON config (no GUI, no real-time pacing):
-
-    ```bash
-    poetry run python -m infectious_disease_simulation.main --headless assets/configs/default_config.json
-    ```
-
-   Add `--seed N` for a deterministic, reproducible run.
-
 6. Set parameters in the `Simulation Parameters` window, or load a previous simulation's parameters by clicking `Load Previous Run`
 
 7. Run the simulation by clicking `Run Simulation`
 
 8. Use the map window to visualise the movement of people and propagation of the disease, and the graph window to see the live S/E/I/R/D curves
+
+### Headless Mode
+
+For automated runs without a GUI (e.g. for batch experiments, regression checks, or testing), use a JSON config file:
+
+```bash
+poetry run python -m infectious_disease_simulation.main --headless assets/configs/default_config.json
+```
+
+`assets/configs/default_config.json` is provided as a starting point — copy it and tweak the values to define your own scenarios.
+
+In headless mode the simulation runs unthrottled (no real-time pacing), suppresses the live graph, and prints the final day, hour, and S/E/I/R/D counts when the run terminates.
+
+Add `--seed N` for a fully reproducible run; the same seed always produces the same outcome:
+
+```bash
+poetry run python -m infectious_disease_simulation.main --headless assets/configs/default_config.json --seed 42
+```
 
 ### Run with Nix Flakes
 
@@ -62,6 +72,18 @@ The program is wrapped in a flake, so it can be run with:
 ```bash
 nix run 'github:defunctdreams/infectious-disease-simulation'
 ```
+
+## Development
+
+### Tests
+
+The test suite uses `pytest`. After `poetry install` (which picks up the dev dependency group automatically), run:
+
+```bash
+poetry run pytest
+```
+
+Tests cover `Config` validation, `Disease` hazard math (with statistical sanity checks), `Dijkstra` and the heap-based `PriorityQueue`, MST construction, `Person` state transitions, and an end-to-end headless smoke test that confirms a seeded run is deterministic.
 
 ## About the Project
 
@@ -107,7 +129,7 @@ Dijsktra's algorithm is used for pathfinding so each person knows which route to
 
 ## The Disease Model
 
-The simulation uses a compartmental SEIRD epidemiological model.
+The simulation uses a stochastic compartmental SEIRD epidemiological model.
 
 The SEIRD model stands for the following:
 
@@ -117,12 +139,16 @@ The SEIRD model stands for the following:
 - (R)ecovered: Gained immunity after infection
 - (D)eceased: Died after infection
 
-This simulation uses probability-based transmissions which depend on:
+The user provides daily probabilities for infection, recovery, and mortality. These are each converted once at the start of the simulation into a per-second hazard rate using `lambda = -ln(1 - p_day) / (24 * seconds_per_hour)`. Every simulation tick then rolls the event with probability `1 - exp(-lambda * delta_t)` against a uniform random draw. This is the standard way of converting a daily probability into something that fires correctly at any tick rate.
 
-- Infection rate
-- Incubation time
-- Recovery rate
-- Mortality rate
+Because the rolls are pseudo-random, two runs with the same parameters produce different trajectories unless a fixed seed is supplied (see [Headless Mode](#headless-mode)). With a seed, the run is fully reproducible, which is what the test suite uses to catch regressions.
+
+The four parameters that drive the model are:
+
+- Infection rate: daily probability of a contact transmitting from an infected person to a susceptible one
+- Incubation time: number of days between exposure and becoming infectious
+- Recovery rate: daily probability of an infected person recovering
+- Mortality rate: daily probability of an infected person dying
 
 ## The Clock
 
@@ -158,25 +184,26 @@ This allows all five curves to be displayed together, making it easy to track al
 
 ### The Validation and Warnings
 
-The simulation validates that the entered parameters will work properly. It checks for the following:
+The simulation rejects parameters that would prevent it from running correctly. The same rules apply to GUI submissions and headless config files, so any invalid value is caught before the run starts. The hard validations are:
 
-- There is a simulation name and it is not too long
-- The display size is a positive integer and is less than a certain display size
+- The simulation name is non-empty and at most 50 characters
+- The simulation speed is positive
+- The display size is a positive integer and at most 2160 pixels
 - The building size is a positive integer
-- There is at least one house and office
-- There are enough possible locations for the number of buildings
-- The number of people in a house is a positive integer
-- People are not too small that they cannot be represented on screen
+- There is at least one house and one office
+- There are enough tile cells for the requested number of buildings
+- The number of people per house is a positive integer
 - The infection rate, recovery rate, and mortality rate are decimals between 0 and 1
 - The incubation time is not less than 0 days
 
-Warnings rather than errors are provided in certain cases as the parameters entered may have been intentional, and the parameters still allow the simulation to run, albeit with some limtations/ performance issues (dependent on user's hardware). These conditions are listed below:
+Warnings (rather than errors) are shown when the parameters are unusual but still runnable — the user can choose to proceed. These are GUI-only prompts; headless runs skip them.
 
 | Warning | Reason |
 |---------|--------|
 | Large population size | Simulation may not run smoothly on all systems |
 | Large number of buildings | Road network may take time to generate |
 | Recovery rate and mortality rate are 0 | Simulation will not end |
+| People too small to render | Population/building-size combination would draw circles below 1 pixel radius |
 
 ## The Database
 
