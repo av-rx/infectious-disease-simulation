@@ -42,9 +42,5 @@ def main() -> None:
     SimulationRunner(config, display, rng=rng, seed=args.seed).run()
 
 
-# Backwards-compatible alias for the [project.scripts] entry point in pyproject.toml
-Main = main
-
-
 if __name__ == "__main__":
     main()

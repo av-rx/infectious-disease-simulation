@@ -19,7 +19,7 @@ requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [project.scripts]
-infectious_disease_simulation = 'infectious_disease_simulation.main:Main'
+infectious_disease_simulation = 'infectious_disease_simulation.main:main'
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0"
