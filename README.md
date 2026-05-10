@@ -167,7 +167,7 @@ This allows all five curves to be displayed together, making it easy to track al
 ### The Explanation
 
 | Parameter | Description |
-|-----------|-------------|
+| --------- | ----------- |
 | Simulation Name | Name associated with the specific run of the simulation |
 | Simulation Speed | Speed at which to run the simulation |
 | Display Size | Size of the window to run the simulation in (pixels) |
@@ -199,7 +199,7 @@ The simulation rejects parameters that would prevent it from running correctly. 
 Warnings (rather than errors) are shown when the parameters are unusual but still runnable — the user can choose to proceed. These are GUI-only prompts; headless runs skip them.
 
 | Warning | Reason |
-|---------|--------|
+| ------- | ------ |
 | Large population size | Simulation may not run smoothly on all systems |
 | Large number of buildings | Road network may take time to generate |
 | Recovery rate and mortality rate are 0 | Simulation will not end |
