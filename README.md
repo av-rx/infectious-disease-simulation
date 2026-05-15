@@ -38,7 +38,7 @@ This README details (in part) the key components of the program and how they wor
 5. Run the program (GUI):
 
     ```bash
-    poetry run python -m infectious_disease_simulation.main
+    poetry run infectious_disease_simulation
     ```
 
 6. Set parameters in the `Simulation Parameters` window, or load a previous simulation's parameters by clicking `Load Previous Run`
@@ -52,7 +52,7 @@ This README details (in part) the key components of the program and how they wor
 For automated runs without a GUI (e.g. for batch experiments, regression checks, or testing), use a JSON config file:
 
 ```bash
-poetry run python -m infectious_disease_simulation.main --headless assets/configs/default_config.json
+poetry run infectious_disease_simulation --headless assets/configs/default_config.json
 ```
 
 `assets/configs/default_config.json` is provided as a starting point — copy it and tweak the values to define your own scenarios.
@@ -62,7 +62,7 @@ In headless mode the simulation runs unthrottled (no real-time pacing), suppress
 Add `--seed N` for a fully reproducible run; the same seed always produces the same outcome:
 
 ```bash
-poetry run python -m infectious_disease_simulation.main --headless assets/configs/default_config.json --seed 42
+poetry run infectious_disease_simulation --headless assets/configs/default_config.json --seed 42
 ```
 
 ### Run with Nix Flakes
