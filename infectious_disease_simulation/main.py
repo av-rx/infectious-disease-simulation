@@ -2,6 +2,10 @@
 
 import random
 import sys
+import warnings
+
+# pygame 2.x uses the deprecated pkg_resources API internally; suppress the noise.
+warnings.filterwarnings("ignore", message="pkg_resources is deprecated", category=UserWarning)
 
 from .cli import parse_args
 from .config_sources import FileConfigSource, GuiConfigSource
