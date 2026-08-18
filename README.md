@@ -14,7 +14,7 @@ This README details (in part) the key components of the program and how they wor
 1. Clone the repository:
 
     ```bash
-    git clone https://github.com/defunctdreams/infectious-disease-simulation.git
+    git clone https://github.com/av-rx/infectious-disease-simulation.git
     ```
 
 2. Navigate to the directory in which the code is saved:
@@ -70,7 +70,7 @@ poetry run infectious_disease_simulation --headless assets/configs/default_confi
 The program is wrapped in a flake, so it can be run with:
 
 ```bash
-nix run 'github:defunctdreams/infectious-disease-simulation'
+nix run 'github:av-rx/infectious-disease-simulation'
 ```
 
 ## Development
